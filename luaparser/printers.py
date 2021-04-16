@@ -35,10 +35,6 @@ class PythonStyleVisitor:
     def visit(self, node):
         return str(node)
 
-    @visitor(Enum)
-    def visit(self, node):
-        return str(node.name)
-
     def indent_str(self, newLine=True):
         res = ' ' * self.currentIndent
         if newLine:
@@ -85,6 +81,14 @@ class PythonStyleVisitor:
             self.dedent()
             k += 1
         return res
+
+    @visitor(IndexNotation)
+    def visit(self, node):
+        return node.name
+
+    @visitor(StringDelimiter)
+    def visit(self, node):
+        return node.name
 
     @visitor(Node)
     def visit(self, node):
@@ -253,6 +257,8 @@ class LuaOutputVisitor:
 
     @visitor(LocalAssign)
     def visit(self, node: LocalAssign) -> str:
+        if not node.values:
+            return 'local ' + self.visit(node.targets)
         return 'local ' + self.visit(node.targets) + ' = ' + self.visit(node.values)
 
     @visitor(While)
@@ -363,10 +369,14 @@ class LuaOutputVisitor:
 
     @visitor(Table)
     def visit(self, node: Table):
-        output = '{\n'
+        output = '{'
         self._up()
-        for field in node.fields:
-            output += indent(self.visit(field) + ',\n', ' ' * self._curr_indent)
+        if len(node.fields) == 1 and isinstance(node.fields[0].value, Varargs):
+            output += '...'
+        else:
+            output += '\n'
+            for field in node.fields:
+                output += indent(self.visit(field) + ',\n', ' ' * self._curr_indent)
         self._down()
         output += '}'
         return output
